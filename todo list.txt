@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>📝 To-Do with Voice & Deadline Alerts</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #eef2f7;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+
+      .todo-container {
+        max-width: 650px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+      }
+
+      input,
+      button {
+        padding: 10px;
+        margin: 8px 5px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+      }
+
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      .task {
+        background: #f0f8ff;
+        margin: 10px 0;
+        padding: 10px;
+        border-left: 5px solid #007bff;
+        border-radius: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .task.done {
+        background: #d4edda;
+        border-left-color: #28a745;
+      }
+
+      .calendar-date {
+        font-size: 13px;
+        color: #555;
+      }
+    </style>
+
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  </head>
+
+  <body>
+    <h1>📅 To-Do List with Voice & Deadline Warning</h1>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      function App() {
+        const [tasks, setTasks] = useState([]);
+        const [title, setTitle] = useState("");
+        const [deadline, setDeadline] = useState("");
+
+        useEffect(() => {
+          const interval = setInterval(() => {
+            const now = new Date().getTime();
+            setTasks((prevTasks) =>
+              prevTasks.map((task) => {
+                const timeLeft = new Date(task.deadline).getTime() - now;
+
+                if (!task.done) {
+                  if (timeLeft > 0 && timeLeft < 60000 && !task.reminded) {
+                    alert(`⏰ Reminder: "${task.title}" is due soon!`);
+                    return { ...task, reminded: true };
+                  }
+                  if (timeLeft <= 0 && !task.missed) {
+                    alert(`⚠ You did not complete your work: "${task.title}"`);
+                    return { ...task, missed: true };
+                  }
+                }
+                return task;
+              })
+            );
+          }, 30000);
+          return () => clearInterval(interval);
+        }, []);
+
+        const addTask = () => {
+          if (!title || !deadline) {
+            alert("Please fill in both fields.");
+            return;
+          }
+
+          const newTask = {
+            title,
+            deadline,
+            reminded: false,
+            missed: false,
+            done: false,
+          };
+
+          setTasks([...tasks, newTask]);
+          setTitle("");
+          setDeadline("");
+        };
+
+        const markDone = (index) => {
+          const updated = [...tasks];
+          updated[index].done = true;
+          setTasks(updated);
+        };
+
+        const startListening = () => {
+          if (!("webkitSpeechRecognition" in window)) {
+            alert("Your browser doesn't support speech recognition");
+            return;
+          }
+
+          const recognition = new webkitSpeechRecognition();
+          recognition.lang = "en-US";
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+
+          recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            setTitle(transcript);
+            alert("🎤 Task recognized: " + transcript);
+          };
+
+          recognition.start();
+        };
+
+        return (
+          <div className="todo-container">
+            <input
+              type="text"
+              placeholder="Task title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <input
+              type="datetime-local"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+            />
+            <button onClick={addTask}>Add Task</button>
+            <button onClick={startListening}>🎤 Speak</button>
+
+            <div id="taskList">
+              {tasks.map((task, index) => (
+                <div key={index} className={`task${task.done ? " done" : ""}`}>
+                  <div>
+                    <strong>{task.title}</strong>
+                    <div className="calendar-date">
+                      Due: {new Date(task.deadline).toLocaleString()}
+                    </div>
+                  </div>
+                  {!task.done && (
+                    <button onClick={() => markDone(index)}>Mark Done</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
